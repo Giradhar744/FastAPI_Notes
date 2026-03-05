@@ -1,15 +1,36 @@
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
 from typing import Optional
-app = FastAPI()
+import psycopg2
+from psycopg2.extras import RealDictCursor
+import time
 
+app = FastAPI()
 
 class post(BaseModel):
     Title:str
     content:str
     published: bool = True
     rating : Optional[int] = None
-    id : int 
+    
+while True:  # This loop helps to connect the fastapi server to postgre database until it is connected, then it moves to backend endpoints.
+        
+        try:
+            conn =  psycopg2.connect(host = 'localhost', database ='Fastapi', user = 'postgres', 
+                             password = '2003@', cursor_factory= RealDictCursor)  
+            # cursor_factory= RealDictCursor ==> It maps the columns with the values
+
+            cursor  = conn.cursor()
+            print("Database Connected Sucessfully")
+            break 
+
+        except Exception as error:
+         print("Connecting to Database Failed")
+         print("Error: ", error)
+
+         time.sleep(2) # For every 2 second server try to connect with database 
+
+
 
 my_post = [post(Title='INDIA', content='INDIA IS A BEAUTIFUL COUNTRY', published=True, rating=None, id = 1),
             post(Title='Nepal', content='Nepal IS A Neighbor COUNTRY of india', published=True, rating=3, id =2)]
@@ -21,44 +42,64 @@ def root():
 
 @app.get('/posts')
 def get_post():
-    return{"message": my_post}
+    cursor.execute(""" SELECT * FROM posts""")
+    posts = cursor.fetchall()
+    return{"message": posts}
 
 @app.post('/createpost', status_code = status.HTTP_201_CREATED)
-def create_post(new_post: post): 
-    new_post.dict() 
-    my_post.append(new_post)
-    print(my_post)
-    return{"message": my_post}
+def create_post(pos: post): 
+    cursor.execute(""" INSERT INTO posts (title,content, published, rating) VALUES (%s,%s,%s,%s) RETURNING *""",
+                   (pos.Title, pos.content, pos.published, pos.rating))
+    
+    new_post = cursor.fetchone()
+    conn.commit()
+    
+    return{"message": new_post}
 
 
-@app.get('/posts/{id}')
-def get_one_post(id: int):
-    for p in my_post:
-        if p.id == id:
-            return p
+@app.get('/posts/{post_id}')
+def get_one_post(post_id: int):
+    cursor.execute("""SELECT * FROM posts WHERE id = %s""", (post_id,))
+    post_id_data = cursor.fetchone()
 
-    raise HTTPException(status_code=404, detail="Post not found")
+    if post_id_data is None:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    return{"message": post_id_data}
 
-@app.delete('/posts/{id}', status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.delete("/delete_posts/{id}", status_code=status.HTTP_200_OK)
 def delete_post(id: int):
-    for ind, p in enumerate(my_post):
-        if p.id == id:
-            my_post.pop(ind)
-            return
+    cursor.execute(
+        "DELETE FROM posts WHERE id = %s RETURNING *",
+        (id,)
+    )
 
-    raise HTTPException(status_code=404, detail="Post not Exist")
+    deleted_id_post = cursor.fetchone()
+    conn.commit()
+
+    if deleted_id_post is None:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    return {"message": deleted_id_post}
+
 
 
 @app.put('/posts_update/{id}')
 def update_post(id: int, posts:post):
-    for ind, p in enumerate(my_post):
-        if p.id == id:
-            post_dict = posts.dict()
-            # post_dict['id'] = id 
-            my_post[ind] = post(**post_dict)
-            return {"message": "Post Updated Successfully"}
+    cursor.execute(
+        "UPDATE posts SET title = %s, content = %s, published = %s, rating = %s WHERE id = %s RETURNING *",
+        (posts.Title, posts.content, posts.published, posts.rating, id)
+    )
 
-    raise HTTPException(status_code=404, detail="Post not Exist")
+    updated_post = cursor.fetchone()
+    conn.commit()
+
+    if  updated_post is None:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    return {"message":  updated_post}
 
 
 # run : fastapi dev main.py
