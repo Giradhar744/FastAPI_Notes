@@ -1,23 +1,25 @@
-from fastapi import FastAPI, HTTPException, status
-from pydantic import BaseModel
-from typing import Optional
+from fastapi import FastAPI
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import time
+from .database import engine
+from . import db_models
+from . routers import post, user, auth
+from .config import USER, DATABASE, PASSWORD, HOST
+
+
+# SQL Alachemy
+db_models.Base.metadata.create_all(bind = engine)
 
 app = FastAPI()
 
-class post(BaseModel):
-    Title:str
-    content:str
-    published: bool = True
-    rating : Optional[int] = None
+
     
-while True:  # This loop helps to connect the fastapi server to postgre database until it is connected, then it moves to backend endpoints.
+while True:  # This loop helps to connect the fastapi server to postgre database until it is connected, then it moves to backend endpoints, used only in case of if only db driver is used.
         
         try:
-            conn =  psycopg2.connect(host = 'localhost', database ='Fastapi', user = 'postgres', 
-                             password = '2003@', cursor_factory= RealDictCursor)  
+            conn =  psycopg2.connect(host = HOST, database = DATABASE, user = USER, 
+                             password = PASSWORD, cursor_factory= RealDictCursor)  
             # cursor_factory= RealDictCursor ==> It maps the columns with the values
 
             cursor  = conn.cursor()
@@ -32,74 +34,22 @@ while True:  # This loop helps to connect the fastapi server to postgre database
 
 
 
-my_post = [post(Title='INDIA', content='INDIA IS A BEAUTIFUL COUNTRY', published=True, rating=None, id = 1),
-            post(Title='Nepal', content='Nepal IS A Neighbor COUNTRY of india', published=True, rating=3, id =2)]
-
 @app.get('/')
 def root():
     return {"message":"Hello world"}
 
+# Verify the user
+app.include_router(auth.router)
 
-@app.get('/posts')
-def get_post():
-    cursor.execute(""" SELECT * FROM posts""")
-    posts = cursor.fetchall()
-    return{"message": posts}
+# All the routes of posts is called by this
+app.include_router(post.router)
 
-@app.post('/createpost', status_code = status.HTTP_201_CREATED)
-def create_post(pos: post): 
-    cursor.execute(""" INSERT INTO posts (title,content, published, rating) VALUES (%s,%s,%s,%s) RETURNING *""",
-                   (pos.Title, pos.content, pos.published, pos.rating))
-    
-    new_post = cursor.fetchone()
-    conn.commit()
-    
-    return{"message": new_post}
-
-
-@app.get('/posts/{post_id}')
-def get_one_post(post_id: int):
-    cursor.execute("""SELECT * FROM posts WHERE id = %s""", (post_id,))
-    post_id_data = cursor.fetchone()
-
-    if post_id_data is None:
-        raise HTTPException(status_code=404, detail="Post not found")
-    
-    return{"message": post_id_data}
+# All the routes of user is called by this
+app.include_router(user.router)
 
 
 
-@app.delete("/delete_posts/{id}", status_code=status.HTTP_200_OK)
-def delete_post(id: int):
-    cursor.execute(
-        "DELETE FROM posts WHERE id = %s RETURNING *",
-        (id,)
-    )
 
-    deleted_id_post = cursor.fetchone()
-    conn.commit()
-
-    if deleted_id_post is None:
-        raise HTTPException(status_code=404, detail="Post not found")
-
-    return {"message": deleted_id_post}
-
-
-
-@app.put('/posts_update/{id}')
-def update_post(id: int, posts:post):
-    cursor.execute(
-        "UPDATE posts SET title = %s, content = %s, published = %s, rating = %s WHERE id = %s RETURNING *",
-        (posts.Title, posts.content, posts.published, posts.rating, id)
-    )
-
-    updated_post = cursor.fetchone()
-    conn.commit()
-
-    if  updated_post is None:
-        raise HTTPException(status_code=404, detail="Post not found")
-
-    return {"message":  updated_post}
 
 
 # run : fastapi dev main.py
