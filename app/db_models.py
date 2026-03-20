@@ -1,6 +1,7 @@
 from .database import Base
 from sqlalchemy import Column, Integer, Boolean, String, ForeignKey
 from sqlalchemy.sql.sqltypes import TIMESTAMP
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import text
 
 class Post(Base):
@@ -14,6 +15,8 @@ class Post(Base):
     created_at = Column(TIMESTAMP(timezone= True), nullable=False, server_default=text('now()'))
     owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE", onupdate="CASCADE"), nullable=False)
 
+    owner =  relationship("User") # reference of the  class "User" model which basically tells me the data of the other table which the given or specific user.
+
 class User(Base):
     __tablename__ = "users"
 
@@ -21,3 +24,10 @@ class User(Base):
     email = Column(String, unique=True, nullable=False)
     password = Column(String, nullable= False)
     created_at = Column(TIMESTAMP(timezone= True), nullable=False, server_default=text('now()'))
+
+
+class Vote(Base):
+    __tablename__="votes"
+
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"),  primary_key= True)
+    post_id = Column(Integer, ForeignKey("posts.id", ondelete="CASCADE"),  primary_key= True)

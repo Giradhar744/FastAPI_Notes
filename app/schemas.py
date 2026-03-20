@@ -1,5 +1,5 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional, Annotated
 from datetime import datetime
 
 
@@ -12,19 +12,6 @@ class PostBase(BaseModel):
 class CreatePost(PostBase):
     pass  # It simply inherits its parents property
 
-class PostResponse(PostBase):
-     id: int
-     created_at:  datetime
-     owner_id: int
-     
-     class Config:
-        from_attributes = True
-
-class UserCreate(BaseModel):
-        email: EmailStr
-        password: str
-
-
 class UserCreateResponse(BaseModel):
      id: int
      email : EmailStr
@@ -32,6 +19,29 @@ class UserCreateResponse(BaseModel):
      
      class Config:
         from_attributes = True
+
+class PostResponse(PostBase):
+     id: int
+     created_at:  datetime
+     owner_id: int
+     owner:  UserCreateResponse
+     
+     class Config:
+        from_attributes = True
+
+class PostOut(BaseModel):
+    Post: PostResponse
+    Like_count: int
+
+    class Config:
+       from_attributes = True
+
+class UserCreate(BaseModel):
+        email: EmailStr
+        password: str
+
+
+
 
 
 class Userlogin(BaseModel):
@@ -46,3 +56,8 @@ class Token(BaseModel):
 
 class Token_data(BaseModel):
      id : Optional[int] = None
+
+
+class Vote(BaseModel):
+     post_id: int
+     like: Annotated[int, Field(ge= 0 , le=1, strict=True)]

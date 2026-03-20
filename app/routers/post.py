@@ -4,6 +4,8 @@ from .. database import get_db
 from sqlalchemy.orm import Session
 from typing import List
 from .. oauth2 import get_current_user
+from typing import Optional
+from sqlalchemy import func
 
 router = APIRouter(
     prefix= '/posts',      # keeping the all the routers name same, starting with /posts
@@ -11,11 +13,18 @@ router = APIRouter(
 )
 
 
-@router.get('/',response_model= List[schemas.PostResponse])
-def get_posts(db:Session = Depends(get_db), current_user_obj: int = Depends(get_current_user)):
+# @router.get('/',response_model= List[schemas.PostResponse])
+@router.get('/',response_model= List[schemas.PostOut])
+def get_posts(db:Session = Depends(get_db), current_user_obj: int = Depends(get_current_user), limit: int=10, skip: int = 0, search : Optional[str] =""):
     # cursor.execute(""" SELECT * FROM posts""")
     # posts = cursor.fetchall()
-    posts = db.query(db_models.Post).all()
+    #posts = db.query(db_models.Post).filter(db_models.Post.title.contains(search)).limit(limit).offset(skip).all()  # limit and skip are the query parameter where any user can customise the output in the frontend.
+    # Note: if you apply more than one query parameter then use by '&' b/w both the query. '?' is used to initiate the query option.
+    # %20 is used for space during wirting of a query
+
+    posts = db.query(db_models.Post, func.count(db_models.Vote.post_id).label("Like_count")).join(db_models.Vote, db_models.Vote.post_id == db_models.Post.id, isouter=True)\
+        .group_by(db_models.Post.id).filter(db_models.Post.title.contains(search)).limit(limit).offset(skip).all()
+    # print(result) # apply left outer join
     return posts
 
 @router.post('/', status_code = status.HTTP_201_CREATED, response_model= schemas.PostResponse)
@@ -34,12 +43,14 @@ def create_post(pos: schemas.CreatePost, db:Session = Depends(get_db), current_u
     return new_post
 
 
-@router.get('/{post_id}',response_model= schemas.PostResponse)
+@router.get('/{post_id}',response_model= schemas.PostOut)
 def get_post(post_id: int , db:Session = Depends(get_db), current_user_obj: int = Depends(get_current_user)):
     # cursor.execute("""SELECT * FROM posts WHERE id = %s""", (post_id,))
     # post_id_data = cursor.fetchone()
 
-    post_id_data = db.query(db_models.Post).filter(db_models.Post.id == post_id).first()
+    # post_id_data = db.query(db_models.Post).filter(db_models.Post.id == post_id).first()
+    post_id_data = db.query(db_models.Post, func.count(db_models.Vote.post_id).label("Like_count")).join(db_models.Vote, db_models.Vote.post_id == db_models.Post.id, isouter=True)\
+        .group_by(db_models.Post.id).filter(db_models.Post.id == post_id).first()
 
     if post_id_data is None:
         raise HTTPException(status_code=404, detail="Post not found")
