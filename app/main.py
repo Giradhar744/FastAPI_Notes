@@ -5,7 +5,8 @@ from . routers import post, user, auth, votes
 
 
 # SQL Alachemy
-db_models.Base.metadata.create_all(bind = engine)
+# db_models.Base.metadata.create_all(bind = engine)     # Tables are created and updated through Alembic migrations.
+                                                        # This helps manage changes safely, so create_all() is not needed.
 
 # Make an app object of FastAPI
 app = FastAPI()

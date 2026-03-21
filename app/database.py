@@ -1,8 +1,11 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from .config import settings
+from urllib.parse import quote_plus
 
-SQLALCHEMY_DATABASE_URL = f'postgresql+psycopg2://{settings.USER}:{settings.PASSWORD}@{settings.DATABASE_HOST}:{settings.DATABASE_PORT}/{settings.DATABASE}' # %40 <==> @
+password = quote_plus(settings.PASSWORD)
+password = password.replace("%", "%%")
+SQLALCHEMY_DATABASE_URL = f'postgresql+psycopg2://{settings.USER}:{password}@{settings.DATABASE_HOST}:{settings.DATABASE_PORT}/{settings.DATABASE}' # %40 <==> @
 
 engine =  create_engine(SQLALCHEMY_DATABASE_URL)
 
