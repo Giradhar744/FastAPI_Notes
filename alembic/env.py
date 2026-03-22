@@ -12,7 +12,6 @@ from alembic import context
 config = context.config
 
 password = quote_plus(settings.PASSWORD)
-password = password.replace("%", "%%")   # converting %---> @
 config.set_main_option("sqlalchemy.url", f'postgresql+psycopg2://{settings.USER}:{password}@{settings.DATABASE_HOST}:{settings.DATABASE_PORT}/{settings.DATABASE}' )
 
 # Interpret the config file for Python logging.

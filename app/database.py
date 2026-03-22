@@ -4,7 +4,6 @@ from .config import settings
 from urllib.parse import quote_plus
 
 password = quote_plus(settings.PASSWORD)
-password = password.replace("%", "%%")
 SQLALCHEMY_DATABASE_URL = f'postgresql+psycopg2://{settings.USER}:{password}@{settings.DATABASE_HOST}:{settings.DATABASE_PORT}/{settings.DATABASE}' # %40 <==> @
 
 engine =  create_engine(SQLALCHEMY_DATABASE_URL)
